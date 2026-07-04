@@ -1,0 +1,6 @@
+{
+  "name": "Sổ Điểm Điện Tử",
+  "description": "Hệ thống quản lý lớp học, nhập điểm học sinh dành cho giáo viên và theo dõi kết quả học tập dành cho phụ huynh.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

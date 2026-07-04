@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      (function() {
+        try {
+          const originalFetch = window.fetch || globalThis.fetch;
+          if (originalFetch) {
+            // Shadow the prototype's getter-only fetch property with a fully writable own property on window
+            try {
+              Object.defineProperty(window, 'fetch', {
+                value: originalFetch,
+                writable: true,
+                configurable: true,
+                enumerable: true
+              });
+            } catch (e) {
+              console.warn("Could not define fetch on window instance, trying getter/setter:", e);
+              let currentFetch = originalFetch;
+              try {
+                Object.defineProperty(window, 'fetch', {
+                  configurable: true,
+                  enumerable: true,
+                  get() { return currentFetch; },
+                  set(v) { currentFetch = v; }
+                });
+              } catch (e2) {
+                console.error("Could not redefine window.fetch:", e2);
+              }
+            }
+
+            // Also make sure globalThis.fetch is redefined if globalThis is distinct
+            if (typeof globalThis !== 'undefined' && globalThis !== window) {
+              try {
+                Object.defineProperty(globalThis, 'fetch', {
+                  value: originalFetch,
+                  writable: true,
+                  configurable: true,
+                  enumerable: true
+                });
+              } catch (e) {
+                console.warn("Could not define fetch on globalThis:", e);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Critical error in fetch fallback initializer:", error);
+        }
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Google AI Studio App</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
