@@ -6,29 +6,116 @@
         try {
           const originalFetch = window.fetch || globalThis.fetch;
           if (originalFetch) {
-            // Shadow any read-only prototype property by defining a writable own property on window and globalThis
+            let currentFetch = originalFetch;
+
+            // 1. Try to define getter/setter on Window.prototype
+            try {
+              Object.defineProperty(Window.prototype, 'fetch', {
+                configurable: true,
+                enumerable: true,
+                get() {
+                  return currentFetch;
+                },
+                set(v) {
+                  currentFetch = v;
+                }
+              });
+            } catch (e) {
+              console.warn("Could not define fetch getter/setter on Window.prototype:", e);
+            }
+
+            // 2. Try to define getter/setter on window
             try {
               Object.defineProperty(window, 'fetch', {
-                value: originalFetch,
-                writable: true,
                 configurable: true,
+                enumerable: true,
+                get() {
+                  return currentFetch;
+                },
+                set(v) {
+                  currentFetch = v;
+                }
+              });
+            } catch (e) {
+              console.warn("Could not define fetch getter/setter on window:", e);
+            }
+
+            // 3. Create a Proxy to intercept read/write to 'fetch' on global context
+            let proxy;
+            const createGlobalProxy = (targetObj) => {
+              return new Proxy(targetObj, {
+                get(target, prop) {
+                  if (prop === 'fetch') {
+                    return currentFetch;
+                  }
+                  if (prop === 'globalThis' || prop === 'self' || prop === 'window') {
+                    return proxy;
+                  }
+                  const val = Reflect.get(target, prop);
+                  if (typeof val === 'function') {
+                    return val.bind(target);
+                  }
+                  return val;
+                },
+                set(target, prop, value) {
+                  if (prop === 'fetch') {
+                    currentFetch = value;
+                    return true;
+                  }
+                  return Reflect.set(target, prop, value);
+                },
+                has(target, prop) {
+                  if (prop === 'fetch') return true;
+                  return Reflect.has(target, prop);
+                },
+                getOwnPropertyDescriptor(target, prop) {
+                  if (prop === 'fetch') {
+                    return {
+                      value: currentFetch,
+                      writable: true,
+                      configurable: true,
+                      enumerable: true
+                    };
+                  }
+                  return Reflect.getOwnPropertyDescriptor(target, prop);
+                }
+              });
+            };
+
+            proxy = createGlobalProxy(window);
+
+            // Override globalThis, self, and window on the window object to point to the Proxy
+            try {
+              Object.defineProperty(window, 'globalThis', {
+                value: proxy,
+                configurable: true,
+                writable: true,
                 enumerable: true
               });
             } catch (e) {
-              console.warn("Could not define writable fetch on window:", e);
+              console.warn("Could not override globalThis with proxy:", e);
             }
 
-            if (typeof globalThis !== 'undefined' && globalThis !== window) {
-              try {
-                Object.defineProperty(globalThis, 'fetch', {
-                  value: originalFetch,
-                  writable: true,
-                  configurable: true,
-                  enumerable: true
-                });
-              } catch (e) {
-                console.warn("Could not define writable fetch on globalThis:", e);
-              }
+            try {
+              Object.defineProperty(window, 'self', {
+                value: proxy,
+                configurable: true,
+                writable: true,
+                enumerable: true
+              });
+            } catch (e) {
+              console.warn("Could not override self with proxy:", e);
+            }
+
+            try {
+              Object.defineProperty(window, 'window', {
+                value: proxy,
+                configurable: true,
+                writable: true,
+                enumerable: true
+              });
+            } catch (e) {
+              console.warn("Could not override window with proxy:", e);
             }
           }
         } catch (error) {
