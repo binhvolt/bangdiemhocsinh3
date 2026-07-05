@@ -6,7 +6,7 @@
         try {
           const originalFetch = window.fetch || globalThis.fetch;
           if (originalFetch) {
-            // Shadow the prototype's getter-only fetch property with a fully writable own property on window
+            // Shadow any read-only prototype property by defining a writable own property on window and globalThis
             try {
               Object.defineProperty(window, 'fetch', {
                 value: originalFetch,
@@ -15,21 +15,9 @@
                 enumerable: true
               });
             } catch (e) {
-              console.warn("Could not define fetch on window instance, trying getter/setter:", e);
-              let currentFetch = originalFetch;
-              try {
-                Object.defineProperty(window, 'fetch', {
-                  configurable: true,
-                  enumerable: true,
-                  get() { return currentFetch; },
-                  set(v) { currentFetch = v; }
-                });
-              } catch (e2) {
-                console.error("Could not redefine window.fetch:", e2);
-              }
+              console.warn("Could not define writable fetch on window:", e);
             }
 
-            // Also make sure globalThis.fetch is redefined if globalThis is distinct
             if (typeof globalThis !== 'undefined' && globalThis !== window) {
               try {
                 Object.defineProperty(globalThis, 'fetch', {
@@ -39,7 +27,7 @@
                   enumerable: true
                 });
               } catch (e) {
-                console.warn("Could not define fetch on globalThis:", e);
+                console.warn("Could not define writable fetch on globalThis:", e);
               }
             }
           }
